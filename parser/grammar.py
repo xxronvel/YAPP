@@ -1,4 +1,4 @@
-import php_grammar
+import cPickle
 
 class Symbol(object):
     def is_terminal(self):
@@ -84,10 +84,10 @@ class Production(object):
 class Grammar(object):
     def __init__(self):
         self.grammar = {}
-    def read(self):
-        for nonterminal_id in php_grammar.table:
+    def load(self, table):
+        for nonterminal_id in table:
             self.grammar[abs(nonterminal_id)] = Nonterminal(abs(nonterminal_id))
-            for production in php_grammar.table[nonterminal_id]:
+            for production in table[nonterminal_id]:
                 new_production = Production()
                 for symbol in production:
                     if symbol > 0:
@@ -97,3 +97,9 @@ class Grammar(object):
                         new_nonterminal = Nonterminal(abs(symbol))
                         new_production.add_symbol(new_nonterminal)
                 self.grammar[abs(nonterminal_id)].add_production(new_production)
+    def serialize(self, file_name):
+        with open(file_name, "wb") as file:
+            cPickle.dump(self.grammar, file, cPickle.HIGHEST_PROTOCOL)
+    def deserialize(self, file_name):
+        with open(file_name, "rb") as file:
+            return cPickle.load(file)

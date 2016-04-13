@@ -1,4 +1,4 @@
-import sys, tokenizer.s_machine, grammar
+import sys, tokenizer.s_machine, grammar, php_grammar
 
 def get_expected_symbols():
     global nonterminal_id, index, queue, current_rule
@@ -75,7 +75,9 @@ with open(sys.argv[1], "r") as file:
 	tokens = tokenizer.s_machine.get_tokens(contents)
 
 php = grammar.Grammar()
-php.read()
+php.load(php_grammar.table)
+#php.serialize("grammar.ser")
+#php.grammar = php.deserialize("grammar.ser")
 
 nonterminal_id = 0
 current_rule = 0
