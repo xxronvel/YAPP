@@ -130,4 +130,4 @@ curly_brackets = (36, 37)
 
 round_brackets = (32, 33)
 
-ignored_tokens = (127, 26)
+ignored_tokens = (127, 26, 20)
