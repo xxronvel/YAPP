@@ -112,9 +112,8 @@ def decode(file_name, script, snippets):
     script += "?>"
 
     p = Popen("php", stdin=PIPE, stdout=PIPE, stderr=PIPE, close_fds=True)
-    (child_stdout, child_stdin, child_stderr) = (p.stdout, p.stdin, p.stderr)
-    child_stdin.write(script)
-    child_stdin.close()
+    p.stdin.write(script)
+    stdout, stderr = p.communicate()
 
     header = True
     for out in outputs:
