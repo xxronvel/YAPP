@@ -26,6 +26,10 @@ SOFTWARE.
 
 import state_table, reserved
 
+def print_error(verbose, message, line):
+	if verbose == 1:
+		print "{} on line {}".format(message, line)
+
 def get_event(input):
 	try:
 		if input.isalpha():
@@ -38,8 +42,9 @@ def get_event(input):
 		key = get_event(input.decode('unicode_escape'))
 	return state_table.input.get(key, len(state_table.input))
 
-def get_tokens(string):
+def get_tokens(string, verbose):
 	tokens = []
+	result = True
 	next_state = lambda state, event : state_table.table[state][0][event]
 	is_final = lambda state : state_table.table[state][1]
 	token = lambda state : state_table.table[state][2]
@@ -61,7 +66,8 @@ def get_tokens(string):
 			else:
 				new_lines += 1
 		event = get_event(char)
-		#print "debug:", line, current_state, char, next_state(current_state, event)
+		if verbose >= 3:
+			print "debug:", line, current_state, char, next_state(current_state, event)
 		if next_state(current_state, event) > 0:
 			current_state = next_state(current_state, event)
 			index += 1
@@ -76,7 +82,8 @@ def get_tokens(string):
 				if is_final(current_state):
 					tokens.append((reserved.words.get(lexeme, token(current_state)), lexeme, line))
 				else:
-					print "%s on line %s" % (error_message(current_state), line)
+					print_error(verbose, error_message(current_state), line)
+					result = False
 				current_state = 0
 				lexeme = ''
 				line += new_lines
@@ -97,5 +104,6 @@ def get_tokens(string):
 					tokens.append((reserved.words.get(char, None), char, line))
 				index += 1
 	if current_state > 0 and not is_final(current_state):
-		print "%s on line %s" % (error_message(current_state), line)
-	return tokens
+		print_error(verbose, error_message(current_state), line)
+		result = False
+	return tokens, result
