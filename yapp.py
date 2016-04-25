@@ -54,7 +54,7 @@ def insert_pattern(pattern_id, description, instructions, tokens):
                         {"id" : pattern_id,
                          "desc" : description,
                          "instructions" : instructions,
-                         "tokens" : sqlite3.Binary(pickle.dumps([(token[0], token[1]) for token in tokens]))});
+                         "tokens" : sqlite3.Binary(pickle.dumps([token[0] for token in tokens]))});
         connection.commit()
         result = True
     except sqlite3.Error, e:
