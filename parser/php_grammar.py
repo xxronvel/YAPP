@@ -113,3 +113,19 @@ table = {
          ()),
     24: ()
 }
+
+separator = 31
+
+opening_tags = (108, 2, 3, 109, 5, 6)
+
+closing_tags = (7, 110, 8)
+
+string_functions = (128, 129, 130, 131, 143, 144)
+
+assignment_operators = (17, 106)
+
+brackets = (34, 35)
+
+curly_brackets = (36, 37)
+
+round_brackets = (32, 33)

@@ -24,68 +24,139 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import sys, tokenizer.s_machine, grammar, php_grammar
+import php_grammar
+from sets import Set
 
-def parse():
-    global nonterminal_id, index, current_rule, is_expected, stack, token
-    queue = php.grammar[nonterminal_id].get_expected_symbols(current_rule, index)
-    for expected in queue:
-        rule_id, symbol, num_rule, total_rules = expected[0], expected[1], expected[2], expected[3]
-        print "debug:", nonterminal_id, current_rule, index, symbol
-        if symbol.is_terminal():
-            if symbol.token == token:
-                index += 1
-                is_expected = True
+class Parser(object):
+    def __init__(self, grammar, verbose):
+        self.grammar = grammar
+        self.verbose = verbose
+        self.nonterminal_id = 0
+        self.current_rule = 0
+        self.index = 0
+        self.is_expected = True
+        self.stack = []
+        self.pattern = 0
+        self.patterns = Set()
+        self.pattern_trace = {}
+        self.instructions = {}
+        self.trace = []
+        self.terminated = False
+        self.script = '<?php\n'
+        self.snippets = []
+
+    def parse(self, token, lexeme, line):
+        queue = self.grammar.grammar[self.nonterminal_id].get_expected_symbols(self.current_rule,
+                                                                      self.index)
+        for expected in queue:
+            rule_id, symbol, num_rule, total_rules = expected[0], expected[1], expected[2], expected[3]
+            if self.verbose >= 3:
+                print "debug:", self.nonterminal_id, self.current_rule, self.index, symbol
+            if symbol.is_terminal():
+                if symbol.token == token:
+                    if token == php_grammar.separator or token in php_grammar.closing_tags:
+                        self.terminated = True
+                    if not self.terminated:
+                        self.pattern = symbol.pattern_id
+                        self.pattern_trace[self.pattern] = self.grammar.grammar[self.nonterminal_id].get_trace(self.current_rule,
+                                                                                                               self.index)
+                        if (not token in php_grammar.opening_tags):
+                            self.trace.append((token, lexeme, line))
+                    self.index += 1
+                    self.is_expected = True
+                    break
+                else:
+                    self.current_rule += 1
+                    self.is_expected = False
+            elif symbol.is_nonterminal():
+                self.stack.append((self.nonterminal_id,
+                                   self.index,
+                                   self.current_rule,
+                                   num_rule,
+                                   total_rules))
+                self.nonterminal_id = symbol.id
+                self.index = 0
+                self.current_rule = 0
+                self.parse(token, lexeme, line)
                 break
             else:
-                current_rule += 1
-                is_expected = False
-        elif symbol.is_nonterminal():
-            stack.append((nonterminal_id, index, current_rule, num_rule, total_rules))
-            nonterminal_id = symbol.id
-            index = 0
-            current_rule = 0
-            parse()
-            break
+                if self.nonterminal_id != 0:
+                    last = self.stack.pop()
+                    self.nonterminal_id = last[0]
+                    self.index = last[1] + 1
+                    self.current_rule = last[2]
+                    self.parse(token, lexeme, line)
+                break
         else:
-            if nonterminal_id != 0:
-                last = stack.pop()
-                nonterminal_id = last[0]
-                index = last[1] + 1
-                current_rule = last[2]
-                parse()
-            break
-    else:
-        if nonterminal_id != 0:
-            last = stack.pop()
-            if last[3] < last[4] - 1 and index == 0:
-                nonterminal_id = last[0]
-                index = 0
-                current_rule = last[2] + 1
-                parse()
+            if self.nonterminal_id != 0:
+                last = self.stack.pop()
+                if last[3] < last[4] - 1 and self.index == 0:
+                    self.nonterminal_id = last[0]
+                    self.index = 0
+                    self.current_rule = last[2] + 1
+                    self.parse(token, lexeme, line)
 
-with open(sys.argv[1], "r") as file:
-	contents = file.read()
-	tokens = tokenizer.s_machine.get_tokens(contents)
+    def run(self, tokens):
+        is_php = False
+        for item in tokens:
+            token, lexeme, line = item[0], item[1], item[2]
+            if token in php_grammar.opening_tags:
+                is_php = True
+            elif token in php_grammar.closing_tags:
+                is_php = False
 
-php = grammar.Grammar()
-php.load(php_grammar.table)
-#php.grammar = php.deserialize("grammar.ser").grammar
+            if is_php or token in php_grammar.closing_tags:
+                if self.verbose >= 3:
+                    print "{} ========== {} {} ==========".format(line, token, lexeme)
+                self.parse(token, lexeme, line)
+                if self.terminated:
+                    if not self.pattern == 0:
+                        if [ t[0] for t in self.trace] == self.pattern_trace[self.pattern]:
+                            self.patterns.add(self.pattern)
+                        if not self.instructions.get(self.pattern, None) == None:
+                            self.instructions[self.pattern] += 1
+                        else:
+                            self.instructions[self.pattern] = 1
+                        self.eval(self.trace)
+                    else:
+                        self.built_script(self.trace)
+                    if not token in php_grammar.closing_tags:
+                        self.script += '{} '.format(lexeme)
+                    else:
+                        self.script += '\n?>'
+                    self.terminated = False
+                    self.pattern = 0
+                    self.trace = []
+                if not self.is_expected:
+                    #TODO
+                    print "Parse error, unexpected \"{}\" on line {}".format(lexeme, line)
+                    break
+        else:
+            token = 0
+            self.parse(token, lexeme, line)
 
-nonterminal_id = 0
-current_rule = 0
-index = 0
-is_expected = True
+    def built_script(self, lexemes):
+        for lexeme in lexemes:
+            self.script += '{} '.format(lexeme[1])
 
-stack = []
-
-for item in tokens:
-    token, lexeme, line = item[0], item[1], item[2]
-    print "%s ========== %s %s ==========" % (line, token, lexeme)
-    parse()
-    if not is_expected:
-        print "Parse error, unexpected \"%s\" on line %s" % (lexeme, line)
-        break
-else:
-    token = 0
-    parse()
+    def eval(self, lexemes):
+        string_function = False
+        obfuscated = ''
+        in_brackets = []
+        line = None
+        for item in lexemes:
+            token, lexeme = item[0], item[1]
+            self.script += '{} '.format(lexeme)
+            if string_function:
+                obfuscated += '{} '.format(lexeme)
+                if token == php_grammar.round_brackets[0]:
+                    in_brackets.append(token)
+                elif token == php_grammar.round_brackets[1]:
+                    top = in_brackets.pop()
+                    if len(in_brackets) == 0:
+                        self.snippets.append((obfuscated, line))
+                        string_function = False
+            elif token in php_grammar.string_functions:
+                obfuscated += lexeme
+                string_function = True
+                line = item[2]

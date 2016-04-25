@@ -27,161 +27,148 @@ SOFTWARE.
 """
 TODO Insertar funciones
 """
-import sys, tokenizer.s_machine, grammar, php_grammar
+import php_grammar
 
-def insert_pattern():
-    global nonterminal_id, index, current_rule, stack, token, terminated, pattern, inserting, pattern_id, checked, trace
-    queue = php.grammar[nonterminal_id].get_expected_symbols_(current_rule, index, checked)
-    symbol, num_rule, total_rules = None, None, None
-    for expected in queue:
-        current_rule, symbol, num_rule, total_rules = expected[0], expected[1], expected[2], expected[3]
-        print "debug:", nonterminal_id, current_rule, index, symbol, inserting
-        if symbol.is_terminal():
-            if symbol.token == token:
-                if token == separator or token in closing_tags:
-                    terminated = True
-                if not terminated:
-                    pattern = symbol.pattern_id
-                    php.grammar[nonterminal_id].set_trace(current_rule, index, trace)
-                    if (not token in opening_tags):
-                        trace.append((nonterminal_id, current_rule, index))
-                index += 1
+class Inserter(object):
+    def __init__(self, grammar, verbose):
+        self.grammar = grammar
+        self.verbose = verbose
+        self.pattern_id = self.grammar.get_patterns()
+        self.nonterminal_id = 0
+        self.current_rule = 0
+        self.index = 0
+        self.inserting = False
+        self.stack = []
+        self.checked = []
+        self.instructions = 0
+        self.terminated = False
+        self.pattern = 0
+        self.trace = []
+
+    def go_back(self, token):
+        if self.nonterminal_id != 0:
+            last = self.stack.pop()
+            self.nonterminal_id = last[0]
+            self.index = last[1] + 1
+            self.checked = last[2]
+            self.current_rule = last[5]
+            self.insert(token)
+
+    def insert_token(self, token, num_rule, total_rules):
+        inserted, nonterminal = self.grammar.grammar[self.nonterminal_id].insert_token(self.current_rule,
+                                                                                       self.index,
+                                                                                       token,
+                                                                                       self.grammar.get_indices(),
+                                                                                       self.inserting,
+                                                                                       self.pattern_id)
+        self.grammar.add_nonterminal(nonterminal)
+        if not self.nonterminal_id == nonterminal.id:
+            self.stack.append((self.nonterminal_id,
+                               self.index,
+                               self.checked,
+                               num_rule,
+                               total_rules,
+                               self.current_rule))
+            self.nonterminal_id = nonterminal.id
+        if inserted == 1 or inserted == 3:
+            self.checked = []
+            self.index = 0
+        self.insert(token)
+
+    def insert(self, token):
+        queue = self.grammar.grammar[self.nonterminal_id].get_expected_symbols_(self.current_rule,
+                                                                                self.index,
+                                                                                self.checked)
+        symbol, num_rule, total_rules = None, None, None
+        for expected in queue:
+            self.current_rule, symbol, num_rule, total_rules = expected[0], expected[1], expected[2], expected[3]
+            if self.verbose >= 3:
+                print "debug:", self.nonterminal_id, self.current_rule, self.index, symbol, self.inserting
+            if symbol.is_terminal():
+                if symbol.token == token:
+                    if token == php_grammar.separator or token in php_grammar.closing_tags:
+                        self.terminated = True
+                    if not self.terminated:
+                        self.pattern = symbol.pattern_id
+                        self.grammar.grammar[self.nonterminal_id].set_trace(self.current_rule,
+                                                                            self.index,
+                                                                            self.trace)
+                        if (not token in php_grammar.opening_tags):
+                            self.trace.append(token)
+                    self.index += 1
+                    break
+                else:
+                    self.checked.append(self.current_rule)
+                    self.inserting = False
+            elif symbol.is_nonterminal():
+                self.stack.append((self.nonterminal_id,
+                                   self.index,
+                                   self.checked,
+                                   num_rule,
+                                   total_rules,
+                                   self.current_rule))
+                self.nonterminal_id = symbol.id
+                self.index = 0
+                self.checked = []
+                self.inserting = False
+                self.insert(token)
                 break
             else:
-                checked.append(current_rule)
-                inserting = False
-        elif symbol.is_nonterminal():
-            stack.append((nonterminal_id, index, checked, num_rule, total_rules, current_rule))
-            nonterminal_id = symbol.id
-            index = 0
-            checked = []
-            inserting = False
-            insert_pattern()
-            break
-        else:
-            if not inserting:
-                if nonterminal_id != 0:
-                    last = stack.pop()
-                    nonterminal_id = last[0]
-                    index = last[1] + 1
-                    checked = last[2]
-                    current_rule = last[5]
-                    insert_pattern()
-            else:
-                if not (token == separator or token in closing_tags):
-                    inserted, nonterminal = php.grammar[nonterminal_id].insert_token(current_rule, index, token, php.get_indices(), inserting, pattern_id)
-                    php.add_nonterminal(nonterminal)
-                    if not nonterminal_id == nonterminal.id:
-                        stack.append((nonterminal_id, index, checked, num_rule, total_rules, current_rule))
-                        nonterminal_id = nonterminal.id
-                    if inserted == 1 or inserted == 3:
-                        checked = []
-                        index = 0
-                    insert_pattern()
-                    inserting = True
+                if not self.inserting:
+                    self.go_back(token)
                 else:
-                    terminated = True
-                    inserting = False
-                    if nonterminal_id != 0:
-                        last = stack.pop()
-                        nonterminal_id = last[0]
-                        index = last[1] + 1
-                        checked = last[2]
-                        current_rule = last[5]
-                        insert_pattern()
-            break
-    else:
-        if nonterminal_id != 0:
-            last = stack.pop()
-            if last[3] < last[4] - 1 and index == 0:
-                nonterminal_id = last[0]
-                index = 0
-                checked = last[2]
-                checked.append(last[5])
-                insert_pattern()
-            else:
-                if not (token == separator or token in closing_tags):
-                    stack.append(last)
-                    inserted, nonterminal = php.grammar[nonterminal_id].insert_token(current_rule, index, token, php.get_indices(), inserting, pattern_id)
-                    php.add_nonterminal(nonterminal)
-                    if not nonterminal_id == nonterminal.id:
-                        stack.append((nonterminal_id, index, checked, num_rule, total_rules, current_rule))
-                        nonterminal_id = nonterminal.id
-                    if inserted == 1 or inserted == 3:
-                        checked = []
-                        index = 0
-                    insert_pattern()
-                    inserting = True
-                else:
-                    terminated = True
-                    inserting = False
-                    nonterminal_id = last[0]
-                    index = last[1] + 1
-                    checked = last[2]
-                    current_rule = last[5]
-                    inserted, nonterminal = php.grammar[nonterminal_id].insert_token(current_rule, index, 0, php.get_indices(), inserting, pattern_id)
-                    php.add_nonterminal(nonterminal)
-                    if not nonterminal_id == nonterminal.id:
-                        stack.append((nonterminal_id, index, checked, num_rule, total_rules, current_rule))
-                        nonterminal_id = nonterminal.id
-                    if inserted == 1 or inserted == 3:
-                        checked = []
-                        index = 0
-                    insert_pattern()
+                    if not (token == php_grammar.separator or token in php_grammar.closing_tags):
+                        self.insert_token(token, num_rule, total_rules)
+                        self.inserting = True
+                    else:
+                        self.terminated = True
+                        self.inserting = False
+                        self.go_back(token)
+                break
         else:
-            inserted, nonterminal = php.grammar[nonterminal_id].insert_token(current_rule, index, token, php.get_indices(), inserting, pattern_id)
-            php.add_nonterminal(nonterminal)
-            if not nonterminal_id == nonterminal.id:
-                stack.append((nonterminal_id, index, checked, num_rule, total_rules, current_rule))
-                nonterminal_id = nonterminal.id
-            if inserted == 1 or inserted == 3:
-                checked = []
-                index = 0
-            insert_pattern()
-            inserting = True
+            if self.nonterminal_id != 0:
+                last = self.stack.pop()
+                if last[3] < last[4] - 1 and self.index == 0:
+                    self.nonterminal_id = last[0]
+                    self.index = 0
+                    self.checked = last[2]
+                    self.checked.append(last[5])
+                    self.insert(token)
+                else:
+                    if not (token == php_grammar.separator or token in php_grammar.closing_tags):
+                        self.stack.append(last)
+                        self.insert_token(token, num_rule, total_rules)
+                        self.inserting = True
+                    else:
+                        self.terminated = True
+                        self.inserting = False
+                        self.nonterminal_id = last[0]
+                        self.index = last[1] + 1
+                        self.checked = last[2]
+                        self.current_rule = last[5]
+                        self.insert_token(0, num_rule, total_rules)
+            else:
+                self.insert_token(token, num_rule, total_rules)
+                self.inserting = True
 
-with open(sys.argv[1], "r") as file:
-	contents = file.read()
-	tokens = tokenizer.s_machine.get_tokens(contents)
+    def run(self, tokens):
+        is_php = False
+        for item in tokens:
+            token, lexeme = item[0], item[1]
+            if token in php_grammar.opening_tags:
+                is_php = True
+            elif token in php_grammar.closing_tags:
+                is_php = False
 
-php = grammar.Grammar()
-php.load(php_grammar.table)
-#php.serialize("grammar.ser")
-#php = grammar.Grammar().deserialize("grammar.ser")
-pattern_id = php.patterns + 1
-
-print php.grammar
-
-separator = 31
-opening_tags = (108, 2, 3, 109, 5, 6)
-closing_tags = (7, 110, 8)
-
-nonterminal_id = 0
-current_rule = 0
-index = 0
-inserting = False
-
-stack = []
-checked = []
-
-instructions = 0
-terminated = False
-pattern = 0
-trace = []
-
-for item in tokens:
-    token, lexeme, line = item[0], item[1], item[2]
-    print "%s ========== %s %s ==========" % (line, token, lexeme)
-    insert_pattern()
-    if terminated:
-        if not pattern == 0:
-            instructions += 1
-        terminated = False
-        print "Pattern:", pattern, len(trace), trace
-        pattern = 0
-        trace = []
-        print "End:", nonterminal_id, current_rule, token
-
-print php.grammar
-#php.serialize("grammar.ser")
-print instructions
+            if is_php or token in php_grammar.closing_tags:
+                if self.verbose >= 3:
+                    print "========== %s %s ==========" % (token, lexeme)
+                self.insert(token)
+                if self.terminated:
+                    if self.pattern == self.pattern_id:
+                        self.instructions += 1
+                    self.terminated = False
+                    if self.verbose >= 3:
+                        print "Pattern:", self.pattern, len(self.trace), self.trace
+                    self.pattern = 0
+                    self.trace = []

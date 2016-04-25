@@ -57,6 +57,7 @@ class Nonterminal(Symbol):
         self.id = id
         self.production_rules = []
         self.sequence = 0
+
     def add_production(self, production):
         if len(self.production_rules) > 0:
             index = 0
@@ -75,6 +76,7 @@ class Nonterminal(Symbol):
         else:
             self.production_rules.append(production)
         self.sequence += 1
+
     def get_expected_symbols(self, rule, index):
         result = []
         if index == 0:
@@ -86,6 +88,7 @@ class Nonterminal(Symbol):
             else:
                 result.append((0, Empty(), rule, 1))
         return result
+
     def get_expected_symbols_(self, rule, index, checked):
         result = []
         rule = self.get_production_index(rule)
@@ -99,6 +102,7 @@ class Nonterminal(Symbol):
             else:
                 result.append((0, Empty(), rule, 1))
         return result
+
     def get_production_index(self, id):
         result = None
         for n, rule in enumerate(self.production_rules):
@@ -106,6 +110,7 @@ class Nonterminal(Symbol):
                 result = n
                 break
         return result
+
     def insert_token(self, rule, index, token, indices, inserting, pattern_id):
         rule = self.get_production_index(rule)
         if index == 0:
@@ -149,14 +154,20 @@ class Nonterminal(Symbol):
             new_nonterminal.add_production(new_production)
             new_nonterminal.add_production(Production(1))
             return (3, new_nonterminal)
+
     def del_production(self, rule):
         del self.production_rules[rule]
+
     def set_trace(self, rule, index, trace):
+        rule = self.get_production_index(rule)
         self.production_rules[rule].symbols[index].trace = trace
+
     def get_trace(self, rule, index):
         return self.production_rules[rule].symbols[index].trace
+
     def is_nonterminal(self):
         return True
+
     def __repr__(self):
         return str(self.id) + str (self.production_rules)
 
@@ -164,22 +175,28 @@ class Production(object):
     def __init__(self, id):
         self.id = id
         self.symbols = []
+
     def add_symbol(self, symbol):
         self.symbols.append(symbol)
+
     def get_symbol(self, index):
         if not self.is_empty() and index < self.length():
             return self.symbols[index]
         else:
             return Empty()
+
     def is_empty(self):
         if self.length() == 0:
             return True
         else:
             return False
+
     def get_items(self):
         return self.symbols
+
     def length(self):
         return len(self.symbols)
+
     def __repr__(self):
         return str(self.symbols)
 
@@ -198,13 +215,21 @@ class Grammar(object):
                     elif symbol < 0:
                         new_production.add_symbol(Nonterminal(abs(symbol)))
                 self.grammar[nonterminal_id].add_production(new_production)
+
     def add_nonterminal(self, nonterminal):
         self.grammar[nonterminal.id] = nonterminal
+
+    def get_patterns(self):
+        self.patterns += 1
+        return self.patterns
+
     def get_indices(self):
         return len(self.grammar)
+
     def serialize(self, file_name):
         with open(file_name, "wb") as file:
             pickle.dump(self, file, pickle.HIGHEST_PROTOCOL)
+
     def deserialize(self, file_name):
         with open(file_name, "rb") as file:
             return pickle.load(file)
