@@ -97,6 +97,7 @@ class Parser(object):
                     self.parse(token, lexeme, line)
 
     def run(self, tokens):
+        result = True
         is_php = False
         for item in tokens:
             token, lexeme, line = item[0], item[1], item[2]
@@ -130,10 +131,12 @@ class Parser(object):
                 if not self.is_expected:
                     #TODO
                     print "Parse error, unexpected \"{}\" on line {}".format(lexeme, line)
+                    result = False
                     break
         else:
             token = 0
             self.parse(token, lexeme, line)
+        return result
 
     def built_script(self, lexemes):
         for lexeme in lexemes:
