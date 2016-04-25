@@ -199,28 +199,28 @@ def main():
                 tokens, result = s_machine.get_tokens(contents, verbose)
                 if result:
                     par = parser.Parser(php, verbose)
-                    par.run(tokens)
-                    if len(par.patterns) == 0:
-                        print "No matches found"
-                    else:
-                        if len(par.patterns) == 1:
-                            print "Match found:",
+                    if par.run(tokens):
+                        if len(par.patterns) == 0:
+                            print "No matches found"
                         else:
-                            print "{} matches found:".format(len(par.patterns))
-
-                        for pattern in par.patterns:
-                            result = select_pattern(pattern)
-                            if result:
-                                description, instructions = result
-                                if par.instructions[pattern] == instructions:
-                                    print description
+                            if len(par.patterns) == 1:
+                                print "Match found:",
                             else:
-                                if args.description:
-                                    print args.description
+                                print "{} matches found:".format(len(par.patterns))
+
+                            for pattern in par.patterns:
+                                result = select_pattern(pattern)
+                                if result:
+                                    description, instructions = result
+                                    if par.instructions[pattern] == instructions:
+                                        print description
                                 else:
-                                    print "Description not available"
-                        if args.decode and len(par.snippets) > 0:
-                            decode(path.basename(file_obj.name), par.script, par.snippets)
+                                    if args.description:
+                                        print args.description
+                                    else:
+                                        print "Description not available"
+                            if args.decode and len(par.snippets) > 0:
+                                decode(path.basename(file_obj.name), par.script, par.snippets)
                 else:
                     print "Cannot parse {}: This file contains embedded code which does not allow forming PHP tokens".format(file_obj.name)
         except IOError:
