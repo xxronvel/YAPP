@@ -106,7 +106,7 @@ class Parser(object):
             elif token in php_grammar.closing_tags:
                 is_php = False
 
-            if is_php or token in php_grammar.closing_tags:
+            if is_php or token in php_grammar.closing_tags and not token in php_grammar.ignored_tokens:
                 if self.verbose >= 3:
                     print "{} ========== {} {} ==========".format(line, token, lexeme)
                 self.parse(token, lexeme, line)
