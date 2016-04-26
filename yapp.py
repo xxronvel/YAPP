@@ -43,7 +43,7 @@ Examples:
 
 database = 'yapp.db'
 grammar_source = 'grammar.ser'
-decoded_dir = 'decoded files'
+decoded_dir = '.'
 
 def insert_pattern(pattern_id, description, instructions, tokens):
     result = False
@@ -54,7 +54,7 @@ def insert_pattern(pattern_id, description, instructions, tokens):
                         {"id" : pattern_id,
                          "desc" : description,
                          "instructions" : instructions,
-                         "tokens" : sqlite3.Binary(pickle.dumps([token[0] for token in tokens]))});
+                         "tokens" : sqlite3.Binary(pickle.dumps(tokens))});
         connection.commit()
         result = True
     except sqlite3.Error, e:
@@ -80,6 +80,82 @@ def select_pattern(pattern_id):
         if connection:
             connection.close()
     return result
+
+def select_all_pattern():
+    result = None
+    try:
+        connection = sqlite3.connect(database)
+        cursor = connection.cursor()
+        cursor.execute('select id, description from Pattern')
+        header = True
+        for pattern in cursor.fetchall():
+            if header:
+                print "ID\tDESCRIPTION"
+                header = False
+            print "{}\t{}".format(pattern[0], pattern[1])
+        if header:
+            print "Patterns not found"
+
+    except sqlite3.Error, e:
+        print "Error: {}".format(e.args[0])
+    finally:
+        if connection:
+            connection.close()
+    return result
+
+def delete_pattern(pattern_id, verbose):
+    result = True
+    try:
+        connection = sqlite3.connect(database)
+        cursor = connection.cursor()
+        cursor.execute('select id from Pattern where id = ?', (pattern_id,))
+        if cursor.fetchone():
+            cursor.execute('select description, contents from Pattern where id != ?', (pattern_id,))
+            result_set = cursor.fetchall()
+            cursor.execute('delete from Pattern')
+            connection.commit()
+
+            php = grammar.Grammar()
+            php.load(php_grammar.table)
+
+            for pattern in result_set:
+                description = pattern[0]
+                tokens = pickle.loads(pattern[1])
+                ins = inserter.Inserter(php, verbose)
+                ins.run(tokens)
+                php = ins.grammar
+                if not insert_pattern(ins.pattern_id, description, ins.instructions, tokens):
+                    result = False
+            php.serialize(grammar_source)
+        else:
+            result = False
+            print "Pattern not found"
+
+    except sqlite3.Error, e:
+        print "Error: {}".format(e.args[0])
+        result = False
+    finally:
+        if connection:
+            connection.close()
+    return result
+
+def reset():
+    result = True
+    grammar_ = grammar.Grammar()
+    grammar_.load(php_grammar.table)
+    grammar_.serialize(grammar_source)
+    try:
+        connection = sqlite3.connect(database)
+        cursor = connection.cursor()
+        cursor.execute('delete from Pattern')
+        connection.commit()
+    except sqlite3.Error, e:
+        print "Error: {}".format(e.args[0])
+        result = False
+    finally:
+        if connection:
+            connection.close()
+    return grammar_, result
 
 def list_dir(directory, recursive):
     files = []
@@ -122,6 +198,8 @@ def decode(file_name, script, snippets):
                 print "Decoded strings were written to: "
                 header = False
             print "{}".format(out)
+    if header:
+        print "Sorry, something went wrong"
 
 def main():
     args_parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -130,32 +208,52 @@ def main():
                                           )
     args_parser.add_argument('-v', '--verbose', dest="verbose", action="count", default=0,
                         help='increase output verbosity')
-    args_parser.add_argument('--reset', dest="reset", action='store_true',
+    args_parser.add_argument('-l', '--list', dest="list", action='store_true',
+                        help='list patterns')
+    delete_args = args_parser.add_mutually_exclusive_group()
+    delete_args.add_argument('--del', dest="delete", type=int, metavar='ID',
+                        help='delete pattern')
+    delete_args.add_argument('--reset', dest="reset", action='store_true',
                         help='reset the grammar')
-    group1 = args_parser.add_argument_group('Parser', 'Search patterns in files')
-    group2 = args_parser.add_argument_group('Inserter', 'Insert pattern from file')
-    group1.add_argument('input', nargs='*', type=str, metavar='INPUT',
+    parser_args = args_parser.add_argument_group('Parser', 'Search patterns in files')
+    inserter_args = args_parser.add_argument_group('Inserter', 'Insert pattern from file')
+    parser_args.add_argument('input', nargs='*', type=str, metavar='INPUT',
                         help='input file or directory')
-    group1.add_argument('-R', '--recursive', dest='recursive', action='store_true',
+    parser_args.add_argument('-R', '--recursive', dest='recursive', action='store_true',
                         help='parse subdirectories recursively')
-    group1.add_argument('--decode', dest="decode", action='store_true',
+    parser_args.add_argument('--decode', dest="decode", action='store_true',
                         help='decode obfuscated PHP code')
-    group2.add_argument('-r', '--read', dest='read', type=str, metavar='FILE',
+    parser_args.add_argument('--dir', dest="directory", type=str, metavar='DIRECTORY',
+                        help='write decoded files into DIRECTORY (default \'.\')')
+    inserter_args.add_argument('-r', '--read', dest='read', type=str, metavar='FILE',
                         help="read pattern from FILE (requires that --desc also be set)")
-    group2.add_argument('--desc', dest="description", metavar='DESC',
+    inserter_args.add_argument('--desc', dest="description", metavar='DESC',
                         help='description of the pattern to be read')
-    group2.add_argument('-i', '--insert', dest='insert', action='store_true',
+    inserter_args.add_argument('-i', '--insert', dest='insert', action='store_true',
                         help="insert pattern into grammar (requires that -r and --desc also be set)")
     args = args_parser.parse_args()
 
     verbose = args.verbose
 
+    if args.list:
+        select_all_pattern()
+
     if not args.reset:
         php = grammar.Grammar().deserialize(grammar_source)
     else:
-        php = grammar.Grammar()
-        php.load(php_grammar.table)
-        php.serialize(grammar_source)
+        php, result = reset()
+        if result:
+            print "Done"
+
+    if args.delete:
+        if delete_pattern(args.delete, verbose):
+            print "Pattern deleted"
+
+    if args.directory:
+        if path.isdir(args.directory):
+            decoded_dir = args.directory
+        else:
+            args_parser.error("Cannot access {}: No such file or directory".format(args.directory))
 
     if args.read:
         if args.description:
@@ -166,11 +264,11 @@ def main():
                     tokens, result = s_machine.get_tokens(contents, verbose)
                     if result:
                         ins = inserter.Inserter(php, verbose)
-                        ins.run(tokens)
+                        ins.run([token[0] for token in tokens])
                         php = ins.grammar
                         if ins.instructions > 0:
                             if args.insert:
-                                if insert_pattern(ins.pattern_id, args.description, ins.instructions, tokens):
+                                if insert_pattern(ins.pattern_id, args.description, ins.instructions, [token[0] for token in tokens]):
                                     php.serialize(grammar_source)
                                     print "Pattern inserted"
                             else:
@@ -220,6 +318,8 @@ def main():
                                     else:
                                         print "Description not available"
                             if args.decode and len(par.snippets) > 0:
+                                if tokens[-1][0] not in php_grammar.closing_tags:
+                                    par.script += '\n?>'
                                 decode(path.basename(file_obj.name), par.script, par.snippets)
                 else:
                     print "Cannot parse {}: This file contains embedded code which does not allow forming PHP tokens".format(file_obj.name)
