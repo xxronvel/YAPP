@@ -106,4 +106,7 @@ def get_tokens(string, verbose):
 	if current_state > 0 and not is_final(current_state):
 		print_error(verbose, error_message(current_state), line)
 		result = False
+	elif current_state > 0 and is_final(current_state):
+		tokens.append((reserved.words.get(lexeme, token(current_state)), lexeme, line))
+		
 	return tokens, result

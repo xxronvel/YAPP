@@ -64,9 +64,7 @@ errors = {
 	9 : "Parse error, expecting '.'"
 }
 
-"""
-TODO  Código embebido
-"""
+#TODO  Código embebido
 
 table = {
 	0 :  ((60, 28, 1 , 3 , 2 , 21, 42, 44, 20, 41, 26, 27, 29, 34, 35, 0 , 58, 60, 43, 45, 46, 47, 63, 0 , 0 , 0 ), False, 0 , 1),
