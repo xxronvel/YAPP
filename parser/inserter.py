@@ -61,7 +61,7 @@ class Inserter(object):
                                                                                        self.inserting,
                                                                                        self.pattern_id)
         self.grammar.add_nonterminal(nonterminal)
-        if not self.nonterminal_id == nonterminal.id:
+        if self.nonterminal_id != nonterminal.id:
             self.stack.append((self.nonterminal_id,
                                self.index,
                                self.checked,
@@ -152,8 +152,7 @@ class Inserter(object):
 
     def run(self, tokens):
         is_php = False
-        for item in tokens:
-            token, lexeme = item[0], item[1]
+        for token in tokens:
             if token in php_grammar.opening_tags:
                 is_php = True
             elif token in php_grammar.closing_tags:
@@ -161,7 +160,7 @@ class Inserter(object):
 
             if (is_php or token in php_grammar.closing_tags) and not token in php_grammar.ignored_tokens:
                 if self.verbose >= 3:
-                    print "========== %s %s ==========" % (token, lexeme)
+                    print "========== %s ==========" % (token)
                 self.insert(token)
                 if self.terminated:
                     if self.pattern == self.pattern_id:

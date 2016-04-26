@@ -114,15 +114,18 @@ class Parser(object):
                     if not self.pattern == 0:
                         if [ t[0] for t in self.trace] == self.pattern_trace[self.pattern]:
                             self.patterns.add(self.pattern)
-                        if not self.instructions.get(self.pattern, None) == None:
+                        if self.instructions.get(self.pattern, None) != None:
                             self.instructions[self.pattern] += 1
                         else:
                             self.instructions[self.pattern] = 1
-                        self.eval(self.trace)
+                        self.eval_prefix(self.trace)
                     else:
                         self.built_script(self.trace)
                     if not token in php_grammar.closing_tags:
-                        self.script += '{} '.format(lexeme)
+                        if token != php_grammar.separator:
+                            self.script += '{} '.format(lexeme)
+                        else:
+                            self.script += '{}\n'.format(lexeme)
                     else:
                         self.script += '\n?>'
                     self.terminated = False
@@ -143,6 +146,47 @@ class Parser(object):
             self.script += '{} '.format(lexeme[1])
 
     def eval(self, lexemes):
+        string_function = False
+        obfuscated = ''
+        in_brackets = []
+        line = None
+        for item in lexemes:
+            token, lexeme = item[0], item[1]
+            self.script += '{} '.format(lexeme)
+            if string_function:
+                obfuscated += '{} '.format(lexeme)
+                if token == php_grammar.round_brackets[0]:
+                    in_brackets.append(token)
+                elif token == php_grammar.round_brackets[1]:
+                    top = in_brackets.pop()
+                    if len(in_brackets) == 0:
+                        self.snippets.append((obfuscated, line))
+                        string_function = False
+            elif token in php_grammar.string_functions:
+                obfuscated += lexeme
+                string_function = True
+                line = item[2]
+
+    def eval_prefix(self, lexemes):
+        operands = []
+        operators = []
+        for item in lexemes[::-1]:
+            token, lexeme = item[0], item[1]
+            if not token in php_grammar.assignment_operators:
+                operands.append(item)
+            else:
+                while len(operators) > 0:
+                    top = operators.pop()
+                    operands.append(top)
+                else:
+                    operators.append(item)
+        else:
+            while len(operators) > 0:
+                top = operators.pop()
+                operands.append(top)
+
+        if not operands[-1][0] in php_grammar.assignment_operators:
+            self.script += '#'
         string_function = False
         obfuscated = ''
         in_brackets = []

@@ -115,7 +115,7 @@ class Nonterminal(Symbol):
         rule = self.get_production_index(rule)
         if index == 0:
             new_production = Production(self.sequence)
-            if not token == 0:
+            if token != 0:
                 new_production.add_symbol(Terminal(token, pattern_id))
             self.add_production(new_production)
             return (0, self)
@@ -128,7 +128,7 @@ class Nonterminal(Symbol):
             new_production1.add_symbol(Nonterminal(indices))
             for symbol in self.production_rules[rule].get_items()[index:]:
                 new_production2.add_symbol(symbol)
-            if not token == 0:
+            if token != 0:
                 new_production3.add_symbol(Terminal(token, pattern_id))
             self.del_production(rule)
             self.add_production(new_production1)
@@ -137,7 +137,7 @@ class Nonterminal(Symbol):
             new_nonterminal.add_production(new_production3)
             return (1, new_nonterminal)
         elif index == self.production_rules[rule].length() and inserting:
-            if not token == 0:
+            if token != 0:
                 self.production_rules[rule].add_symbol(Terminal(token, pattern_id))
             return (2, self)
         else:
@@ -148,7 +148,7 @@ class Nonterminal(Symbol):
                 new_production.add_symbol(Nonterminal(indices))
                 self.add_production(new_production)
             new_production = Production(0)
-            if not token == 0:
+            if token != 0:
                 new_production.add_symbol(Terminal(token, pattern_id))
             new_nonterminal = Nonterminal(indices)
             new_nonterminal.add_production(new_production)
