@@ -138,6 +138,8 @@ class Parser(object):
                     break
         else:
             token = 0
+            lexemes = ''
+            line = 0
             self.parse(token, lexeme, line)
         return result
 
