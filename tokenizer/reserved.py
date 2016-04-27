@@ -146,4 +146,14 @@ words = {
 	"system" : 142,
 	"preg_replace" : 143,
 	"gzuncompress" : 144,
+	"mysql_query" : 145,
+	"fopen" : 146,
+	"fwrite" : 147,
+	"fclose" : 148,
+	"flock" : 149,
+	"header" : 150,
+	"mysql_connect" : 151,
+	"mysql_select_db" : 152,
+	"mysql_close" : 153,
+	"phpinfo" : 154
 }
