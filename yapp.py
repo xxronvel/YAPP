@@ -43,7 +43,6 @@ Examples:
 
 database = 'yapp.db'
 grammar_source = 'grammar.ser'
-decoded_dir = '.'
 
 def insert_pattern(pattern_id, description, instructions, tokens):
     result = False
@@ -168,7 +167,7 @@ def list_dir(directory, recursive):
             files.append(entry)
     return files
 
-def decode(file_name, script, snippets):
+def decode(file_name, script, snippets, decoded_dir):
     print "Decoding obfuscated PHP code..."
     script += "\n<?php\n"
 
@@ -223,7 +222,7 @@ def main():
                         help='parse subdirectories recursively')
     parser_args.add_argument('--decode', dest="decode", action='store_true',
                         help='decode obfuscated PHP code')
-    parser_args.add_argument('--dir', dest="directory", type=str, metavar='DIRECTORY',
+    parser_args.add_argument('--dir', dest="directory", type=str, metavar='DIRECTORY', default='.',
                         help='write decoded files into DIRECTORY (default \'.\')')
     inserter_args.add_argument('-r', '--read', dest='read', type=str, metavar='FILE',
                         help="read pattern from FILE (requires that --desc also be set)")
@@ -315,7 +314,7 @@ def main():
                             if args.decode and len(par.snippets) > 0:
                                 if tokens[-1][0] not in php_grammar.closing_tags:
                                     par.script += '\n?>'
-                                decode(path.basename(file_obj.name), par.script, par.snippets)
+                                decode(path.basename(file_obj.name), par.script, par.snippets, decoded_dir)
                 else:
                     print "Cannot parse {}: This file contains embedded code which does not allow forming PHP tokens".format(file_obj.name)
         except IOError:
