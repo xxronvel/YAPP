@@ -301,11 +301,6 @@ def main():
                         if len(par.patterns) == 0:
                             print "No matches found"
                         else:
-                            if len(par.patterns) == 1:
-                                print "Match found:",
-                            else:
-                                print "{} matches found:".format(len(par.patterns))
-
                             for pattern in par.patterns:
                                 result = select_pattern(pattern)
                                 if result:
